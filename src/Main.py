@@ -149,7 +149,14 @@ class Main(wx.Frame):
         self.spinCtrlImpulse.Disable()
         self.radioRamp.Disable()
         self.spinCtrlRamp.Disable()
-        
+
+        # Clear
+        self.spinCtrlZeta.SetValue(0)
+        self.spinCtrlOmega.SetValue(1)
+        self.sliderZeta.SetValue(0)
+        self.sliderOmega.SetValue(10)
+        self.spinCtrlStep.SetValue(1)
+
         self.__set_properties()
         self.__do_layout()
 
