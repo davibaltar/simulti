@@ -17,14 +17,20 @@ import numpy as np
 # end wxGlade
 
 import SecOrderSys as sos
-
+from array import array
 
 class Main(wx.Frame):
     def __init__(self, *args, **kwds):
         # begin wxGlade: Main.__init__
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
-        wx.Frame.__init__(self, *args, **kwds)
+        self.frame = wx.Frame.__init__(self, *args, **kwds)
         self.SetSize((950, 620))
+
+        # State current file
+        self.modifiedFile = True
+        self.savedFile = False
+        self.currentFileName = "untitled*"
+
 
         # Menu Bar
         self.mainMenuBar = wx.MenuBar()
@@ -175,7 +181,7 @@ class Main(wx.Frame):
 
     def __set_properties(self):
         # begin wxGlade: Main.__set_properties
-        self.SetTitle("SimuLTI")
+        self.SetTitle("SimuLTI - " + self.currentFileName)
         _icon = wx.NullIcon
         _icon.CopyFromBitmap(wx.Bitmap("./icon.ico", wx.BITMAP_TYPE_ANY))
         self.SetIcon(_icon)
@@ -264,14 +270,75 @@ class Main(wx.Frame):
 
     def menuBarOpen(self, event):  # wxGlade: Main.<event_handler>
         print("Event handler 'menuBarOpen' not implemented!")
+        openFileDialog = wx.FileDialog(self.frame, "Open", "", "", "Simulti files (*.slti)|*.slti", wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
+
+        openFileDialog.ShowModal()
+        print(openFileDialog.GetPath())
+
+        input_file = open(openFileDialog.GetPath(), 'rb')
+        float_array = array('d')
+        float_array.fromstring(input_file.read())
+
+        self.currentFileName = openFileDialog.GetFilename()
+        self.SetTitle("SimuLTI - " + self.currentFileName)
+
+        #print (float_array)
+        #print (float_array[0])
+
+        self.spinCtrlZeta.SetValue(float(float_array[0]))
+        self.sliderZeta.SetValue(float(float_array[1]))
+        self.spinCtrlOmega.SetValue(float(float_array[2]))
+        self.sliderOmega.SetValue(float(float_array[3]))
+
+        if float(float_array[4]) == 1.0:
+            self.spinCtrlImpulse.SetValue(float(float_array[5]))
+        elif float(float_array[4]) == 2.0:
+            self.spinCtrlStep.SetValue(float(float_array[5]))
+        else:
+            self.spinCtrlRamp.SetValue(float(float_array[5]))
+
+        sos.plotSecOrderSystem(self)
+        self.matplotlibCanvas.draw()
+
+        openFileDialog.Destroy()
         event.Skip()
 
     def menuBarSave(self, event):  # wxGlade: Main.<event_handler>
-        print("Event handler 'menuBarSave' not implemented!")
+        output_file = open('sinal_teste.slti', 'wb')
+        float_array = array('d', [5.123123, 10.00000, 15.12341234, 20.9999999, 25])
+        float_array.tofile(output_file)
+        output_file.close()
         event.Skip()
 
     def menuBarSaveAs(self, event):  # wxGlade: Main.<event_handler>
-        print("Event handler 'menuBarSaveAs' not implemented!")
+        fileDialog = wx.FileDialog(self, "", wildcard="Simulti files (*.slti)|*.slti", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        if fileDialog.ShowModal() == wx.ID_CANCEL:
+            return
+
+        pathname = fileDialog.GetPath()
+        try:
+            output_file = open(pathname, 'wb')
+            radioChecked = 0.0
+            radioValue = 0.0
+            if self.radioImpulse.GetValue():
+                radioChecked = 1.0
+                radioValue = self.spinCtrlImpulse.GetValue()
+            elif self.radioStep.GetValue():
+                radioChecked = 2.0
+                radioValue = self.spinCtrlStep.GetValue()
+            else:
+                radioChecked = 3.0
+                radioValue = self.spinCtrlRamp.GetValue()
+
+            float_array = array('d', [self.spinCtrlZeta.GetValue(), self.sliderZeta.GetValue(), self.spinCtrlOmega.GetValue(), self.sliderOmega.GetValue(), radioChecked, radioValue])
+            float_array.tofile(output_file)
+            self.currentFileName = fileDialog.GetFilename()
+            self.SetTitle("SimuLTI - " + self.currentFileName)
+            output_file.close()
+
+        except IOError:
+            wx.LogError("Cannot save current data in file '%s'." % pathname)
+
         event.Skip()
 
     def menuBarClose(self, event):  # wxGlade: Main.<event_handler>
