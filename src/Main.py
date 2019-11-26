@@ -149,7 +149,7 @@ class Main(wx.Frame):
         self.spinCtrlStep = wx.SpinCtrlDouble(self, wx.ID_ANY, "1.0", min=0.0, max=100.0)
         self.radioRamp = wx.RadioButton(self, wx.ID_ANY, "Ramp")
         self.spinCtrlRamp = wx.SpinCtrlDouble(self, wx.ID_ANY, "1.0", min=0.0, max=100.0)
-        self.emptyPanelRightBar = wx.Panel(self, wx.ID_ANY)
+        #self.emptyPanelRightBar = wx.Panel(self, wx.ID_ANY)
 
         self.radioImpulse.Disable()
         self.spinCtrlImpulse.Disable()
@@ -256,7 +256,7 @@ class Main(wx.Frame):
         boxSizerSpinCtrlRamp.Add(self.spinCtrlRamp, 0, wx.EXPAND, 0)
         boxSizerRamp.Add(boxSizerSpinCtrlRamp, 1, wx.EXPAND, 0)
         boxSizerRightBar.Add(boxSizerRamp, 0, wx.EXPAND | wx.TOP, 8)
-        boxSizerRightBar.Add(self.emptyPanelRightBar, 1, wx.EXPAND, 0)
+        #boxSizerRightBar.Add(self.emptyPanelRightBar, 1, wx.EXPAND, 0)
         boxSizerMainRightBar.Add(boxSizerRightBar, 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 5)
         boxSizerMain.Add(boxSizerMainRightBar, 0, wx.EXPAND, 0)
         self.SetSizer(boxSizerMain)
