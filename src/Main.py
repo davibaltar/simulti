@@ -28,26 +28,25 @@ class Main(wx.Frame):
 
         # State current file
         self.modifiedFile = True
-        self.savedFile = False
         self.currentFileName = "untitled*"
-
+        self.currentFilePath = ''
 
         # Menu Bar
         self.mainMenuBar = wx.MenuBar()
         wxglade_tmp_menu = wx.Menu()
         item = wxglade_tmp_menu.Append(wx.ID_ANY, "New", "")
         self.Bind(wx.EVT_MENU, self.menuBarNew, id=item.GetId())
-        item.Enable(False)  # Disable "New"
+        #item.Enable(False)  # Disable "New"
         wxglade_tmp_menu.AppendSeparator()
         item = wxglade_tmp_menu.Append(wx.ID_ANY, "Open...", "")
-        item.Enable(False)  # Disable "Open..."
+        #item.Enable(False)  # Disable "Open..."
         self.Bind(wx.EVT_MENU, self.menuBarOpen, id=item.GetId())
         wxglade_tmp_menu.AppendSeparator()
         item = wxglade_tmp_menu.Append(wx.ID_ANY, "Save", "")
-        item.Enable(False)  # Disable "Save"
+        #item.Enable(False)  # Disable "Save"
         self.Bind(wx.EVT_MENU, self.menuBarSave, id=item.GetId())
         item = wxglade_tmp_menu.Append(wx.ID_ANY, "Save As...", "")
-        item.Enable(False)  # Disable "Save As..."
+        #item.Enable(False)  # Disable "Save As..."
         self.Bind(wx.EVT_MENU, self.menuBarSaveAs, id=item.GetId())
         wxglade_tmp_menu.AppendSeparator()
         item = wxglade_tmp_menu.Append(wx.ID_ANY, "Close", "")
@@ -203,6 +202,7 @@ class Main(wx.Frame):
         self.spinCtrlStep.SetIncrement(0.1)
         self.spinCtrlRamp.SetMinSize((50, 22))
         self.spinCtrlRamp.SetIncrement(0.1)
+        self.plotClear()
         # end wxGlade
 
     def __do_layout(self):
@@ -265,25 +265,158 @@ class Main(wx.Frame):
         # end wxGlade
 
     def menuBarNew(self, event):  # wxGlade: Main.<event_handler>
-        print("Event handler 'menuBarNew' not implemented!")
+        if (self.currentFilePath != '' and self.modifiedFile == True):
+            dlgSave = wx.MessageDialog(self,
+                "Your changes will be lost if you don't save them.",
+                "Do you want to save the change made to the document \"" + self.currentFileName + "\" ?", wx.YES | wx.NO | wx.CANCEL | wx.ICON_QUESTION)
+            result = dlgSave.ShowModal()
+            dlgSave.Destroy()
+            if result == wx.ID_YES or result == wx.ID_NO:
+                if result == wx.ID_YES:
+                    self.saveFile(self.currentFilePath, self.currentFileName)
+                self.newFile()
+        else:
+            self.newFile()
         event.Skip()
 
     def menuBarOpen(self, event):  # wxGlade: Main.<event_handler>
-        print("Event handler 'menuBarOpen' not implemented!")
         openFileDialog = wx.FileDialog(self.frame, "Open", "", "", "Simulti files (*.slti)|*.slti", wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
-
         openFileDialog.ShowModal()
-        print(openFileDialog.GetPath())
+        if(self.currentFilePath != '' and self.modifiedFile == True):
+            dlgSave = wx.MessageDialog(self,
+                "Your changes will be lost if you don't save them.",
+                "Do you want to save the change made to the document \"" + self.currentFileName + "\" ?", wx.YES | wx.NO | wx.CANCEL | wx.ICON_QUESTION)
+            result = dlgSave.ShowModal()
+            dlgSave.Destroy()
 
-        input_file = open(openFileDialog.GetPath(), 'rb')
+            if result == wx.ID_YES or result == wx.ID_NO:
+                if result == wx.ID_YES:
+                    self.saveFile(self.currentFilePath, self.currentFileName)
+                self.openFile(openFileDialog.GetPath(), openFileDialog.GetFilename())
+                self.currentFilePath = openFileDialog.GetPath()
+        else:
+            self.openFile(openFileDialog.GetPath(), openFileDialog.GetFilename())
+            self.currentFilePath = openFileDialog.GetPath()
+        openFileDialog.Destroy()
+        event.Skip()
+
+    def menuBarSave(self, event):  # wxGlade: Main.<event_handler>
+        if self.currentFilePath == '': # New File
+            fileDialog = wx.FileDialog(self, "", wildcard="Simulti files (*.slti)|*.slti", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+            self.saveFile(fileDialog.GetPath(), fileDialog.GetFilename())
+        else:
+            self.saveFile(self.currentFilePath, self.currentFileName)
+        event.Skip()
+
+    def menuBarSaveAs(self, event):  # wxGlade: Main.<event_handler>
+        fileDialog = wx.FileDialog(self, "", wildcard="Simulti files (*.slti)|*.slti", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        if fileDialog.ShowModal() == wx.ID_CANCEL:
+            return
+        self.saveFile(fileDialog.GetPath(), fileDialog.GetFilename())
+        event.Skip()
+
+    def menuBarClose(self, event):  # wxGlade: Main.<event_handler>
+        self.Close()
+        event.Skip()
+
+    def menuBarAbout(self, event):  # wxGlade: Main.<event_handler>
+        wx.MessageBox(
+            caption='SimuLTI',
+            message="Author: Davi Baltar\nLicense: MIT\nVersion: 1.0.1",
+            style=wx.OK | wx.ICON_INFORMATION)
+        event.Skip()
+
+    def btnClear(self, event):  # wxGlade: Main.<event_handler>
+        self.plotClear()
+        event.Skip()
+
+    def changedSpinCtrlZeta(self, event):  # wxGlade: Main.<event_handler>
+        self.changedState()
+        sos.plotSecOrderSystem(self)
+        self.matplotlibCanvas.draw()
+        self.sliderZeta.SetValue(int(self.spinCtrlZeta.GetValue() * 150))
+        event.Skip()
+
+    def changedSliderZeta(self, event):  # wxGlade: Main.<event_handler>
+        self.changedState()
+        sos.plotSecOrderSystem(self)
+        self.matplotlibCanvas.draw()
+        self.spinCtrlZeta.SetValue(float(self.sliderZeta.GetValue() / 150))
+        event.Skip()
+
+    def changedSpinCtrlOmega(self, event):  # wxGlade: Main.<event_handler>
+        self.changedState()
+        sos.plotSecOrderSystem(self)
+        self.matplotlibCanvas.draw()
+        self.sliderOmega.SetValue(int(self.spinCtrlOmega.GetValue() * 10))
+        event.Skip()
+
+    def changedSliderOmega(self, event):  # wxGlade: Main.<event_handler>
+        self.changedState()
+        sos.plotSecOrderSystem(self)
+        self.matplotlibCanvas.draw()
+        self.spinCtrlOmega.SetValue(float(self.sliderOmega.GetValue() / 10))
+        event.Skip()
+
+    def checkedRadioImpulse(self, event):  # wxGlade: Main.<event_handler>
+        print("Event handler 'checkedRadioImpulse' not implemented!")
+        event.Skip()
+
+    def changedSpinCtrlImpulse(self, event):  # wxGlade: Main.<event_handler>
+        print("Event handler 'changedSpinCtrlImpulse' not implemented!")
+        event.Skip()
+
+    def checkedRadioStep(self, event):  # wxGlade: Main.<event_handler>
+        event.Skip()
+
+    def changedSpinCtrlStep(self, event):  # wxGlade: Main.<event_handler>
+        self.changedState()
+        sos.plotSecOrderSystem(self)
+        self.matplotlibCanvas.draw()
+        event.Skip()
+
+    def checkedRadioRamp(self, event):  # wxGlade: Main.<event_handler>
+        print("Event handler 'checkedRadioRamp' not implemented!")
+        event.Skip()
+
+    def changedSpinCtrlRamp(self, event):  # wxGlade: Main.<event_handler>
+        print("Event handler 'changedSpinCtrlRamp' not implemented!")
+        event.Skip()
+
+    def changedState(self):
+        self.modifiedFile = True
+        if self.currentFileName != 'untitled*':
+            self.SetTitle("SimuLTI - " + self.currentFileName + '*')
+
+    def plotClear(self):
+        self.changedState()
+        self.spinCtrlZeta.SetValue(0)
+        self.spinCtrlOmega.SetValue(1)
+        self.sliderZeta.SetValue(0)
+        self.sliderOmega.SetValue(10)
+        self.spinCtrlStep.SetValue(1)
+        sos.plotSecOrderSystem(self)
+        self.matplotlibCanvas.draw()
+
+    def newFile(self):
+        self.modifiedFile = True
+        self.currentFileName = "untitled*"
+        self.currentFilePath = ''
+        self.SetTitle("SimuLTI - " + self.currentFileName)
+
+        self.plotClear()
+
+    def openFile(self, filePath, fileName):
+        input_file = open(filePath, 'rb')
         float_array = array('d')
         float_array.fromstring(input_file.read())
 
-        self.currentFileName = openFileDialog.GetFilename()
-        self.SetTitle("SimuLTI - " + self.currentFileName)
-
-        #print (float_array)
-        #print (float_array[0])
+        self.currentFileName = fileName
+        self.SetTitle("SimuLTI - " + fileName)
+        self.modifiedFile = False
+        self.currentFilePath = filePath
 
         self.spinCtrlZeta.SetValue(float(float_array[0]))
         self.sliderZeta.SetValue(float(float_array[1]))
@@ -300,24 +433,9 @@ class Main(wx.Frame):
         sos.plotSecOrderSystem(self)
         self.matplotlibCanvas.draw()
 
-        openFileDialog.Destroy()
-        event.Skip()
-
-    def menuBarSave(self, event):  # wxGlade: Main.<event_handler>
-        output_file = open('sinal_teste.slti', 'wb')
-        float_array = array('d', [5.123123, 10.00000, 15.12341234, 20.9999999, 25])
-        float_array.tofile(output_file)
-        output_file.close()
-        event.Skip()
-
-    def menuBarSaveAs(self, event):  # wxGlade: Main.<event_handler>
-        fileDialog = wx.FileDialog(self, "", wildcard="Simulti files (*.slti)|*.slti", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
-        if fileDialog.ShowModal() == wx.ID_CANCEL:
-            return
-
-        pathname = fileDialog.GetPath()
+    def saveFile(self, filePath, fileName):
         try:
-            output_file = open(pathname, 'wb')
+            output_file = open(filePath, 'wb')
             radioChecked = 0.0
             radioValue = 0.0
             if self.radioImpulse.GetValue():
@@ -332,87 +450,18 @@ class Main(wx.Frame):
 
             float_array = array('d', [self.spinCtrlZeta.GetValue(), self.sliderZeta.GetValue(), self.spinCtrlOmega.GetValue(), self.sliderOmega.GetValue(), radioChecked, radioValue])
             float_array.tofile(output_file)
-            self.currentFileName = fileDialog.GetFilename()
-            self.SetTitle("SimuLTI - " + self.currentFileName)
+            
+            self.currentFileName = fileName
+            self.SetTitle("SimuLTI - " + fileName)
+            self.modifiedFile = False
+            self.currentFilePath = filePath
+
+            sos.plotSecOrderSystem(self)
+            self.matplotlibCanvas.draw()
+
             output_file.close()
 
         except IOError:
-            wx.LogError("Cannot save current data in file '%s'." % pathname)
-
-        event.Skip()
-
-    def menuBarClose(self, event):  # wxGlade: Main.<event_handler>
-        #print("Event handler 'menuBarClose' not implemented!")
-        self.Close()
-        event.Skip()
-
-    def menuBarAbout(self, event):  # wxGlade: Main.<event_handler>
-        #print("Event handler 'menuBarAbout' not implemented!")
-        wx.MessageBox(
-            caption='SimuLTI',
-            message="Author: Davi Baltar\nLicense: MIT\nVersion: 1.0.0",
-            style=wx.OK | wx.ICON_INFORMATION)
-        event.Skip()
-
-    def btnClear(self, event):  # wxGlade: Main.<event_handler>
-        #print("Event handler 'btnClear' not implemented!")
-        self.spinCtrlZeta.SetValue(0)
-        self.spinCtrlOmega.SetValue(1)
-        self.sliderZeta.SetValue(0)
-        self.sliderOmega.SetValue(10)
-        self.spinCtrlStep.SetValue(1)
-        sos.plotSecOrderSystem(self)
-        self.matplotlibCanvas.draw()
-        event.Skip()
-
-    def changedSpinCtrlZeta(self, event):  # wxGlade: Main.<event_handler>
-        sos.plotSecOrderSystem(self)
-        self.matplotlibCanvas.draw()
-        self.sliderZeta.SetValue(int(self.spinCtrlZeta.GetValue() * 150))
-        event.Skip()
-
-    def changedSliderZeta(self, event):  # wxGlade: Main.<event_handler>
-        sos.plotSecOrderSystem(self)
-        self.matplotlibCanvas.draw()
-        self.spinCtrlZeta.SetValue(float(self.sliderZeta.GetValue() / 150))
-        event.Skip()
-
-    def changedSpinCtrlOmega(self, event):  # wxGlade: Main.<event_handler>
-        sos.plotSecOrderSystem(self)
-        self.matplotlibCanvas.draw()
-        self.sliderOmega.SetValue(int(self.spinCtrlOmega.GetValue() * 10))
-        event.Skip()
-
-    def changedSliderOmega(self, event):  # wxGlade: Main.<event_handler>
-        sos.plotSecOrderSystem(self)
-        self.matplotlibCanvas.draw()
-        self.spinCtrlOmega.SetValue(float(self.sliderOmega.GetValue() / 10))
-        event.Skip()
-
-    def checkedRadioImpulse(self, event):  # wxGlade: Main.<event_handler>
-        print("Event handler 'checkedRadioImpulse' not implemented!")
-        event.Skip()
-
-    def changedSpinCtrlImpulse(self, event):  # wxGlade: Main.<event_handler>
-        print("Event handler 'changedSpinCtrlImpulse' not implemented!")
-        event.Skip()
-
-    def checkedRadioStep(self, event):  # wxGlade: Main.<event_handler>
-        #print("Event handler 'checkedRadioStep' not implemented!")
-        event.Skip()
-
-    def changedSpinCtrlStep(self, event):  # wxGlade: Main.<event_handler>
-        #print("Event handler 'changedSpinCtrlStep' not implemented!")
-        sos.plotSecOrderSystem(self)
-        self.matplotlibCanvas.draw()
-        event.Skip()
-
-    def checkedRadioRamp(self, event):  # wxGlade: Main.<event_handler>
-        print("Event handler 'checkedRadioRamp' not implemented!")
-        event.Skip()
-
-    def changedSpinCtrlRamp(self, event):  # wxGlade: Main.<event_handler>
-        print("Event handler 'changedSpinCtrlRamp' not implemented!")
-        event.Skip()
+            wx.LogError("Cannot save current data in file '%s'." % filePath)
 
 # end of class Main
