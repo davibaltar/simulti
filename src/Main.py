@@ -27,7 +27,7 @@ class Main(wx.Frame):
         self.SetSize((950, 620))
 
         # State current file
-        self.modifiedFile = True
+        self.modifiedFile = False
         self.currentFileName = "untitled*"
         self.currentFilePath = ''
 
@@ -58,7 +58,7 @@ class Main(wx.Frame):
         self.mainMenuBar.Append(wxglade_tmp_menu, "About")
         self.SetMenuBar(self.mainMenuBar)
         # Menu Bar end
-
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
         self.mainStatusbar = self.CreateStatusBar(1)
         self.panelGraph = wx.Panel(self, wx.ID_ANY)
         figure = self.matplotlib_figure = Figure()
@@ -329,6 +329,7 @@ class Main(wx.Frame):
         event.Skip()
 
     def btnClear(self, event):  # wxGlade: Main.<event_handler>
+        self.changedState()
         self.plotClear()
         event.Skip()
 
@@ -391,7 +392,6 @@ class Main(wx.Frame):
             self.SetTitle("SimuLTI - " + self.currentFileName + '*')
 
     def plotClear(self):
-        self.changedState()
         self.spinCtrlZeta.SetValue(0)
         self.spinCtrlOmega.SetValue(1)
         self.sliderZeta.SetValue(0)
@@ -401,7 +401,7 @@ class Main(wx.Frame):
         self.matplotlibCanvas.draw()
 
     def newFile(self):
-        self.modifiedFile = True
+        self.changedState()
         self.currentFileName = "untitled*"
         self.currentFilePath = ''
         self.SetTitle("SimuLTI - " + self.currentFileName)
@@ -464,4 +464,27 @@ class Main(wx.Frame):
         except IOError:
             wx.LogError("Cannot save current data in file '%s'." % filePath)
 
+    def OnClose(self, event):
+        if(self.modifiedFile == True):
+            dlgSave = wx.MessageDialog(self,
+                "Your changes will be lost if you don't save them.",
+                "Do you want to save the change made to the document \"" + self.currentFileName + "\" ?", wx.YES | wx.NO | wx.CANCEL | wx.ICON_QUESTION)
+            result = dlgSave.ShowModal()
+            dlgSave.Destroy()
+
+            if result == wx.ID_YES or result == wx.ID_NO:
+                if result == wx.ID_YES:
+                    if(self.currentFilePath == ''):
+                        fileDialog = wx.FileDialog(self, "", wildcard="Simulti files (*.slti)|*.slti", style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+                        if fileDialog.ShowModal() == wx.ID_CANCEL:
+                            return
+                        self.saveFile(fileDialog.GetPath(), fileDialog.GetFilename())
+                    else:
+                        self.saveFile(self.currentFilePath, self.currentFileName)
+                self.Destroy()
+            else:
+                return
+        else:
+            self.Destroy()
+        event.Skip()
 # end of class Main
